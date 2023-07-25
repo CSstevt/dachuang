@@ -1,0 +1,48 @@
+nc: 80 # number of classes
+depth_multiple: 1.0  # model depth multiple
+width_multiple: 1.0  # layer channel multiple
+
+# anchors
+anchors:
+  - [12,16, 19,36, 40,28]  # P3/8
+  - [36,75, 76,55, 72,146]  # P4/16
+  - [142,110, 192,243, 459,401]  # P5/32
+
+# yolov7 backbone
+backbone:
+   [
+    [-1, 1, SwinTransformer_Tiny, []],#0    [96,192,384,768]
+    [ -1, 1, Conv, [ 1024, 3, 1 ] ], #4
+   ]
+head:
+  [  [-1, 1, SPPCSPC, [512]],  #5
+     [ -1, 1, Conv, [ 256, 1, 1 ] ], #6
+     [ -1, 1, nn.Upsample, [ None, 2, 'nearest' ] ],
+     [ 3, 1, Conv, [ 256, 1, 1 ] ],   #8  -p4
+     [ [ -1, -2 ], 1, Concat, [ 1 ] ],
+
+     [ -1, 1, Yolov7_E_ELAN_NECK, [ 256, 128 ] ], #10
+     [-1, 1, Conv, [128, 1, 1]],  #特征融合
+
+     [ -1, 1, nn.Upsample, [ None, 2, 'nearest' ] ],
+     [ 2, 1, Conv, [ 128, 1, 1 ] ],    #p3
+     [[-1, -2], 1, Concat, [1]],
+
+     [ -1, 1, Yolov7_E_ELAN_NECK, [ 128, 64 ] ], # 15  256 -> 128
+
+     [ [ -1, 10], 1, V7DownSampling_Neck, [ 128 ] ],
+
+     [ -1, 1, Yolov7_E_ELAN_NECK, [ 256, 128 ] ], # 17
+
+     [ [ -1, 5 ], 1, V7DownSampling_Neck, [ 256 ] ], #
+
+     [ -1, 1, Yolov7_E_ELAN_NECK, [ 512, 256 ] ], # 19
+
+     [ 15, 1, RepConv, [ 256, 3, 1 ] ], # 20-P3
+     [ 17, 1, RepConv, [ 512, 3, 1 ] ], # 21-P4
+     [ 19, 1, RepConv, [ 1024, 3, 1 ] ], # 22-P5
+
+     [ [ 20, 21, 22 ], 1, IDetect, [ nc, anchors ] ],
+
+
+  ]
